@@ -9,5 +9,5 @@ export default async function AnnotatePage() {
     redirect("/");
   }
 
-  return <AnnotateClient clinicianName={session.displayName} />;
+  return <AnnotateClient clinicianName={session.displayName} isAdmin={session.role === "admin"} />;
 }

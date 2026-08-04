@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import sampleData from "@/data/sample_conversations.json";
 import AcuityPicker from "@/components/AcuityPicker";
 import ProgressBar from "@/components/ProgressBar";
@@ -55,7 +56,13 @@ type Phase =
   | "saving"
   | "error";
 
-export default function AnnotateClient({ clinicianName }: { clinicianName: string }) {
+export default function AnnotateClient({
+  clinicianName,
+  isAdmin = false,
+}: {
+  clinicianName: string;
+  isAdmin?: boolean;
+}) {
   const [order, setOrder] = useState<SampledConversation[] | null>(null);
   const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
   const [convIndex, setConvIndex] = useState(0);
@@ -261,7 +268,14 @@ export default function AnnotateClient({ clinicianName }: { clinicianName: strin
             Thank you, {clinicianName}. You have completed all{" "}
             {order?.length ?? 0} conversations.
           </p>
-          <LogoutButton />
+          <div className="top-bar-actions">
+            {isAdmin && (
+              <Link href="/admin" className="secondary-button">
+                Back to dashboard
+              </Link>
+            )}
+            <LogoutButton />
+          </div>
         </div>
       </div>
     );
@@ -273,7 +287,14 @@ export default function AnnotateClient({ clinicianName }: { clinicianName: strin
     <div className="page">
       <div className="top-bar">
         <ProgressBar current={completedIds.size} total={order.length} />
-        <LogoutButton />
+        <div className="top-bar-actions">
+          {isAdmin && (
+            <Link href="/admin" className="secondary-button">
+              Back to dashboard
+            </Link>
+          )}
+          <LogoutButton />
+        </div>
       </div>
 
       {saveError && (

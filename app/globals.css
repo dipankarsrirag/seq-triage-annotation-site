@@ -337,6 +337,21 @@ p.subtitle {
   margin-bottom: 0;
 }
 
+.top-bar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  white-space: nowrap;
+}
+
+.top-bar-actions .secondary-button {
+  margin: 0;
+  padding: 8px 14px;
+  font-size: 0.85rem;
+  text-decoration: none;
+  display: inline-block;
+}
+
 .logout-button {
   background: transparent;
   color: var(--muted);
