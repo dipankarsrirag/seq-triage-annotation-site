@@ -47,9 +47,19 @@ cp .env.example .env.local
 Fill in:
 - `NEXT_PUBLIC_SUPABASE_URL` — your Supabase project URL
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY` — your Supabase anon key
-- `NEXT_PUBLIC_CLINICIANS` — comma-separated names of the two clinicians, e.g.
-  `Dr. Alice Smith,Dr. Bob Lee`. These are the only two identities the app
-  will let someone pick from on the landing page.
+- `AUTH_USERS` — **server-only** (do not prefix with `NEXT_PUBLIC_`), a JSON
+  array of login accounts, e.g.:
+  ```json
+  [
+    {"username": "clinician1", "password": "...", "displayName": "Dr. Alice Smith", "role": "clinician"},
+    {"username": "clinician2", "password": "...", "displayName": "Dr. Bob Lee", "role": "clinician"},
+    {"username": "admin", "password": "...", "role": "admin", "displayName": "Admin (test)"}
+  ]
+  ```
+  `displayName` is what gets stored as the `clinician` value in Supabase and
+  shown in the UI. `role` is `"clinician"` or `"admin"`.
+- `SESSION_SECRET` — **server-only**, a random secret used to sign session
+  cookies. Generate one with `openssl rand -hex 32`.
 
 ### 4. Install and run locally
 
@@ -58,30 +68,51 @@ npm install
 npm run dev
 ```
 
-Visit http://localhost:3000, pick a clinician name, and walk through a
-conversation to confirm everything works before deploying.
+Visit http://localhost:3000, sign in with one of the accounts from
+`AUTH_USERS`, and walk through a conversation to confirm everything works
+before deploying.
 
 ### 5. Deploy to Vercel
 
 1. Push this repo to GitHub (if not already).
-2. Go to https://vercel.com, "New Project", import the repo, and set the
-   **root directory** to `annotation-site`.
-3. Add the same three environment variables from `.env.local` in the Vercel
-   project settings.
-4. Deploy. Share the resulting URL with the two clinicians.
+2. Go to https://vercel.com, "New Project", import the repo. Framework
+   preset must be **Next.js** (Vercel should auto-detect this from
+   `package.json`/`next.config.js` at the repo root).
+3. Add the same four environment variables from `.env.local` in the Vercel
+   project settings (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`,
+   `AUTH_USERS`, `SESSION_SECRET`).
+4. Deploy. Share the resulting URL and each clinician's own username/password
+   with them individually.
+
+## Authentication & admin mode
+
+Sign-in is username/password (checked against `AUTH_USERS`), not a plain
+name picker. On success the server sets a signed, `httpOnly` session cookie
+(HMAC-SHA256 over the user's role/display name, verified on every request to
+`/annotate` and `/admin` by `middleware.ts`). There's no user database or
+password hashing — this is a lightweight gate appropriate for a small,
+short-lived internal exercise, not a general-purpose auth system.
+
+The `admin` role gets:
+- Its own login that goes through the exact same annotation flow at
+  `/annotate`, saved under a separate `displayName` (e.g. "Admin (test)") so
+  test runs never mix with real clinician rows.
+- A dashboard at `/admin` showing each clinician's completed count out of 50,
+  a full table of all saved annotations, and a **Reset progress** button per
+  clinician (deletes all of that clinician's rows after a confirmation
+  prompt) — useful for re-running a test pass without touching Supabase
+  directly.
 
 ## Data & privacy notes
 
 - The Supabase table `annotations` uses a permissive row-level-security
-  policy (`using (true)`) since this is a small trusted two-person tool
-  behind an unlisted URL, not a public product. Anyone with the URL and the
-  anon key could read or write rows. Don't reuse this policy for anything
-  more sensitive.
-- There is no real authentication — a clinician "logs in" by picking their
-  name from the fixed list in `NEXT_PUBLIC_CLINICIANS`. This is enough to
-  key their annotations and support resuming a session (their progress is
-  looked up in Supabase by name), but it does not prevent someone from
-  picking the other clinician's name.
+  policy (`using (true)`) since this is a small trusted tool behind an
+  unlisted URL, not a public product. Anyone with the Supabase URL and the
+  anon key could read or write rows directly (bypassing the app's login
+  entirely). Don't reuse this policy for anything more sensitive.
+- Session cookies are signed but not encrypted — don't put anything
+  sensitive in `AUTH_USERS` beyond what you're comfortable having readable
+  server-side (it's never sent to the client).
 
 ## Analyzing results
 

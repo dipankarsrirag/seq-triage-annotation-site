@@ -43,10 +43,23 @@ export async function saveAnnotation(row: AnnotationRow): Promise<void> {
   }
 }
 
-export function getClinicianList(): string[] {
-  const raw = process.env.NEXT_PUBLIC_CLINICIANS ?? "";
-  return raw
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
+export async function fetchAllAnnotations(): Promise<AnnotationRow[]> {
+  const { data, error } = await supabase
+    .from("annotations")
+    .select("*")
+    .order("completed_at", { ascending: false });
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? []) as AnnotationRow[];
+}
+
+export async function deleteClinicianAnnotations(clinician: string): Promise<void> {
+  const { error } = await supabase.from("annotations").delete().eq("clinician", clinician);
+
+  if (error) {
+    throw error;
+  }
 }

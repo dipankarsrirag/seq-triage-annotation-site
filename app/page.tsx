@@ -1,20 +1,41 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { getClinicianList } from "@/lib/supabaseClient";
+import { FormEvent, useState } from "react";
 
-const CLINICIAN_KEY = "triage-annotation-clinician";
-
-export default function HomePage() {
+export default function LoginPage() {
   const router = useRouter();
-  const clinicians = getClinicianList();
-  const [selected, setSelected] = useState<string | null>(null);
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  function handleStart() {
-    if (!selected) return;
-    localStorage.setItem(CLINICIAN_KEY, selected);
-    router.push("/annotate");
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setSubmitting(true);
+
+    try {
+      const res = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setError(body.error ?? "Login failed");
+        setSubmitting(false);
+        return;
+      }
+
+      const data = await res.json();
+      router.push(data.role === "admin" ? "/admin" : "/annotate");
+      router.refresh();
+    } catch (err: any) {
+      setError(String(err?.message ?? err));
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -29,34 +50,36 @@ export default function HomePage() {
           confirm or change your answer.
         </p>
 
-        <h2>Who are you?</h2>
-        <div className="clinician-list">
-          {clinicians.length === 0 && (
-            <p className="subtitle">
-              No clinicians configured. Set NEXT_PUBLIC_CLINICIANS in your
-              environment (comma-separated names).
-            </p>
-          )}
-          {clinicians.map((name) => (
-            <button
-              key={name}
-              type="button"
-              className={`clinician-option${selected === name ? " selected" : ""}`}
-              onClick={() => setSelected(name)}
-            >
-              {name}
-            </button>
-          ))}
-        </div>
+        <form onSubmit={handleSubmit} className="login-form">
+          <label>
+            Username
+            <input
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              autoComplete="username"
+              autoFocus
+            />
+          </label>
+          <label>
+            Password
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
+            />
+          </label>
 
-        <button
-          type="button"
-          className="primary-button"
-          disabled={!selected}
-          onClick={handleStart}
-        >
-          Start / Resume
-        </button>
+          {error && <div className="error-banner">{error}</div>}
+
+          <button
+            type="submit"
+            className="primary-button"
+            disabled={submitting || !username || !password}
+          >
+            {submitting ? "Signing in..." : "Sign in"}
+          </button>
+        </form>
       </div>
     </div>
   );
