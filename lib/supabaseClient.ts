@@ -8,12 +8,16 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 export type AnnotationRow = {
   clinician: string;
   conversation_id: string;
+  total_utterances: number;
   committed_at_k: number | null;
+  committed_at_pct: number | null;
   deferred_ks: number[];
+  deferred_pcts: number[];
   initial_acuity: number | null;
   final_acuity: number;
   changed: boolean;
   change_turn: number | null;
+  change_pct: number | null;
   change_utterance_text: string | null;
   completed_at: string;
 };

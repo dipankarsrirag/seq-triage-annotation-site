@@ -74,9 +74,11 @@ export default function AnnotateClient({
 
   const [kIndex, setKIndex] = useState(0);
   const [deferredKs, setDeferredKs] = useState<number[]>([]);
+  const [deferredPcts, setDeferredPcts] = useState<number[]>([]);
   const [phase, setPhase] = useState<Phase>("k-view");
   const [initialAcuity, setInitialAcuity] = useState<number | null>(null);
   const [committedAtK, setCommittedAtK] = useState<number | null>(null);
+  const [committedAtPct, setCommittedAtPct] = useState<number | null>(null);
   const [pickerValue, setPickerValue] = useState<number | null>(null);
   const [changeAcuity, setChangeAcuity] = useState<number | null>(null);
   const [changeIndex, setChangeIndex] = useState<number | null>(null);
@@ -132,9 +134,11 @@ export default function AnnotateClient({
   function resetConversationState() {
     setKIndex(0);
     setDeferredKs([]);
+    setDeferredPcts([]);
     setPhase("k-view");
     setInitialAcuity(null);
     setCommittedAtK(null);
+    setCommittedAtPct(null);
     setPickerValue(null);
     setChangeAcuity(null);
     setChangeIndex(null);
@@ -143,7 +147,10 @@ export default function AnnotateClient({
 
   function handleDefer() {
     if (!conv) return;
-    if (currentK !== null) setDeferredKs((prev) => [...prev, currentK]);
+    if (currentK !== null) {
+      setDeferredKs((prev) => [...prev, currentK]);
+      setDeferredPcts((prev) => [...prev, percentAtK(currentK, cappedNUtterances)]);
+    }
     if (isLastK) {
       setPhase("forced-picker");
     } else {
@@ -162,9 +169,10 @@ export default function AnnotateClient({
   }
 
   function handleInitialConfirm() {
-    if (pickerValue === null) return;
+    if (pickerValue === null || currentK === null) return;
     setInitialAcuity(pickerValue);
     setCommittedAtK(currentK);
+    setCommittedAtPct(percentAtK(currentK, cappedNUtterances));
     setPhase("full-reveal");
   }
 
@@ -175,6 +183,7 @@ export default function AnnotateClient({
         finalAcuity: initialAcuity,
         changed: false,
         changeTurn: null,
+        changePct: null,
         changeUtteranceText: null,
       },
       "full-reveal"
@@ -197,6 +206,7 @@ export default function AnnotateClient({
         finalAcuity: changeAcuity,
         changed: true,
         changeTurn: turn,
+        changePct: turn !== null ? percentAtK(turn, cappedNUtterances) : null,
         changeUtteranceText: text,
       },
       "change-picker"
@@ -210,6 +220,7 @@ export default function AnnotateClient({
         finalAcuity: pickerValue,
         changed: false,
         changeTurn: null,
+        changePct: null,
         changeUtteranceText: null,
       },
       "forced-picker"
@@ -221,6 +232,7 @@ export default function AnnotateClient({
       finalAcuity: number;
       changed: boolean;
       changeTurn: number | null;
+      changePct: number | null;
       changeUtteranceText: string | null;
     },
     revertPhase: Phase
@@ -231,12 +243,16 @@ export default function AnnotateClient({
       await saveAnnotation({
         clinician: clinicianName,
         conversation_id: conv.conversation_id,
+        total_utterances: cappedNUtterances,
         committed_at_k: committedAtK,
+        committed_at_pct: committedAtPct,
         deferred_ks: deferredKs,
+        deferred_pcts: deferredPcts,
         initial_acuity: initialAcuity,
         final_acuity: result.finalAcuity,
         changed: result.changed,
         change_turn: result.changeTurn,
+        change_pct: result.changePct,
         change_utterance_text: result.changeUtteranceText,
         completed_at: new Date().toISOString(),
       });
@@ -362,7 +378,8 @@ export default function AnnotateClient({
           <>
             <div className="notice">
               You committed <strong>ESI {initialAcuity}</strong> at the first{" "}
-              {committedAtK} utterances.
+              {committedAtK} utterances
+              {committedAtPct !== null && ` (${committedAtPct}%)`}.
             </div>
             <h2>Would you like to change your acuity?</h2>
             <div className="yes-no-row">

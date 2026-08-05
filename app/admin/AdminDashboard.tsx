@@ -97,11 +97,13 @@ export default function AdminDashboard({ clinicianNames }: { clinicianNames: str
                 <tr>
                   <th>Clinician</th>
                   <th>Conversation</th>
-                  <th>Committed@k</th>
+                  <th>Total</th>
+                  <th>Committed@k (%)</th>
+                  <th>Deferred@k (%)</th>
                   <th>Initial</th>
                   <th>Final</th>
                   <th>Changed</th>
-                  <th>Change utterance #</th>
+                  <th>Change utterance # (%)</th>
                   <th>Completed</th>
                 </tr>
               </thead>
@@ -110,11 +112,29 @@ export default function AdminDashboard({ clinicianNames }: { clinicianNames: str
                   <tr key={`${r.clinician}-${r.conversation_id}`}>
                     <td>{r.clinician}</td>
                     <td>{r.conversation_id}</td>
-                    <td>{r.committed_at_k ?? "—"}</td>
+                    <td>{r.total_utterances ?? "—"}</td>
+                    <td>
+                      {r.committed_at_k ?? "—"}
+                      {r.committed_at_pct !== null && r.committed_at_pct !== undefined
+                        ? ` (${r.committed_at_pct}%)`
+                        : ""}
+                    </td>
+                    <td>
+                      {r.deferred_ks.length === 0
+                        ? "—"
+                        : r.deferred_ks
+                            .map((k, i) => `${k} (${r.deferred_pcts[i] ?? "?"}%)`)
+                            .join(", ")}
+                    </td>
                     <td>{r.initial_acuity ?? "—"}</td>
                     <td>{r.final_acuity}</td>
                     <td>{r.changed ? "Yes" : "No"}</td>
-                    <td>{r.change_turn ?? "—"}</td>
+                    <td>
+                      {r.change_turn ?? "—"}
+                      {r.change_pct !== null && r.change_pct !== undefined
+                        ? ` (${r.change_pct}%)`
+                        : ""}
+                    </td>
                     <td>{new Date(r.completed_at).toLocaleString()}</td>
                   </tr>
                 ))}
