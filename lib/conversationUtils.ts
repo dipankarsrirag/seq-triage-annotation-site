@@ -23,9 +23,37 @@ export type SampledConversation = {
 };
 
 const REVEAL_FRACTIONS = [0.25, 0.5, 0.75, 1.0] as const;
+export const MAX_PATIENT_TURNS = 12;
 
 export function isUtterance(entry: HistoryEntry): entry is UtteranceEntry {
   return entry.actor === "nurse" || entry.actor === "patient";
+}
+
+export function countUtterances(history: HistoryEntry[]): number {
+  return history.reduce((count, entry) => count + (isUtterance(entry) ? 1 : 0), 0);
+}
+
+/** Truncates history so it ends right after the Nth patient utterance
+ * (N = maxPatientTurns), or returns it unchanged if it has fewer patient
+ * turns than that. This defines "100%" for the checkpoint scheme and bounds
+ * the full-reveal step, so no conversation shown to a clinician exceeds
+ * maxPatientTurns patient turns regardless of how long the source
+ * conversation actually is. */
+export function capAtPatientTurns(
+  history: HistoryEntry[],
+  maxPatientTurns: number = MAX_PATIENT_TURNS
+): HistoryEntry[] {
+  let patientCount = 0;
+  for (let i = 0; i < history.length; i++) {
+    const entry = history[i];
+    if (isUtterance(entry) && entry.actor === "patient") {
+      patientCount += 1;
+      if (patientCount === maxPatientTurns) {
+        return history.slice(0, i + 1);
+      }
+    }
+  }
+  return history;
 }
 
 /** Checkpoints available for this conversation, in order: a fixed first look

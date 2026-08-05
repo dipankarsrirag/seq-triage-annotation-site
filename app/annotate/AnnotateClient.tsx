@@ -13,6 +13,8 @@ import {
   firstNewIndex,
   utteranceNumberAtIndex,
   percentAtK,
+  capAtPatientTurns,
+  countUtterances,
   SampledConversation,
 } from "@/lib/conversationUtils";
 import { fetchCompletedConversationIds, saveAnnotation } from "@/lib/supabaseClient";
@@ -100,9 +102,15 @@ export default function AnnotateClient({
 
   const conv = order && convIndex < order.length ? order[convIndex] : null;
 
+  // The whole exercise is bounded to the first MAX_PATIENT_TURNS patient
+  // turns of each conversation - this capped history is "the conversation"
+  // for checkpoints, the full reveal, and the change-utterance picker.
+  const cappedHistory = useMemo(() => (conv ? capAtPatientTurns(conv.history) : []), [conv]);
+  const cappedNUtterances = useMemo(() => countUtterances(cappedHistory), [cappedHistory]);
+
   const kList = useMemo(
-    () => (conv ? getAvailableKs(conv.n_utterances) : []),
-    [conv]
+    () => (conv ? getAvailableKs(cappedNUtterances) : []),
+    [conv, cappedNUtterances]
   );
   const currentK = kList[kIndex] ?? null;
   const isLastK = kIndex === kList.length - 1;
@@ -110,16 +118,16 @@ export default function AnnotateClient({
   const visibleHistory = useMemo(() => {
     if (!conv) return [];
     if (phase === "k-view" || phase === "initial-picker") {
-      return currentK !== null ? sliceAtK(conv.history, currentK) : conv.history;
+      return currentK !== null ? sliceAtK(cappedHistory, currentK) : cappedHistory;
     }
-    return conv.history;
-  }, [conv, phase, currentK]);
+    return cappedHistory;
+  }, [conv, cappedHistory, phase, currentK]);
 
   const newFromIndex = useMemo(() => {
     if (!conv || (phase !== "k-view" && phase !== "initial-picker")) return undefined;
     const prevK = kIndex === 0 ? 0 : kList[kIndex - 1];
-    return firstNewIndex(conv.history, prevK);
-  }, [conv, phase, kIndex, kList]);
+    return firstNewIndex(cappedHistory, prevK);
+  }, [conv, cappedHistory, phase, kIndex, kList]);
 
   function resetConversationState() {
     setKIndex(0);
@@ -181,8 +189,8 @@ export default function AnnotateClient({
 
   function handleChangeConfirm() {
     if (!conv || changeAcuity === null || changeIndex === null) return;
-    const entry = conv.history[changeIndex];
-    const turn = utteranceNumberAtIndex(conv.history, changeIndex);
+    const entry = cappedHistory[changeIndex];
+    const turn = utteranceNumberAtIndex(cappedHistory, changeIndex);
     const text = "utterance" in entry ? entry.utterance : null;
     void finalize(
       {
@@ -305,11 +313,11 @@ export default function AnnotateClient({
       )}
 
       <div className="card">
-        {(phase === "k-view" || phase === "initial-picker") && currentK !== null && conv && (
+        {(phase === "k-view" || phase === "initial-picker") && currentK !== null && (
           <span className="k-badge">
             {kIndex === 0
               ? `First ${currentK} utterances (chief complaint)`
-              : `First ${currentK} utterances (${percentAtK(currentK, conv.n_utterances)}%)`}
+              : `First ${currentK} utterances (${percentAtK(currentK, cappedNUtterances)}%)`}
           </span>
         )}
         {(phase === "full-reveal" || phase === "change-picker" || phase === "forced-picker") && (
