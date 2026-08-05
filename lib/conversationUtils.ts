@@ -22,15 +22,38 @@ export type SampledConversation = {
   ground_truth_acuity: number;
 };
 
-export const K_CHECKPOINTS = [4, 8, 12, 16, 20, 24] as const;
+const REVEAL_FRACTIONS = [0.25, 0.5, 0.75, 1.0] as const;
 
 export function isUtterance(entry: HistoryEntry): entry is UtteranceEntry {
   return entry.actor === "nurse" || entry.actor === "patient";
 }
 
-/** Checkpoints (<= total utterances) available for this conversation, in order. */
+/** Checkpoints available for this conversation, in order: a fixed first look
+ * at the first 4 utterances (chief complaint), then 25/50/75/100% of the
+ * conversation's total utterance count. Fractions that round to <= the
+ * previous checkpoint are skipped, and the final checkpoint always lands
+ * exactly on the full conversation. */
 export function getAvailableKs(nUtterances: number): number[] {
-  return K_CHECKPOINTS.filter((k) => k <= nUtterances);
+  const first = Math.min(4, nUtterances);
+  const checkpoints = [first];
+
+  for (const fraction of REVEAL_FRACTIONS) {
+    const k = Math.min(nUtterances, Math.max(first, Math.round(nUtterances * fraction)));
+    if (k > checkpoints[checkpoints.length - 1]) {
+      checkpoints.push(k);
+    }
+  }
+
+  if (checkpoints[checkpoints.length - 1] !== nUtterances) {
+    checkpoints.push(nUtterances);
+  }
+
+  return checkpoints;
+}
+
+/** Percentage of the conversation's utterances revealed at checkpoint k. */
+export function percentAtK(k: number, nUtterances: number): number {
+  return Math.round((k / nUtterances) * 100);
 }
 
 /** Slice history to the first k nurse/patient utterances, including any

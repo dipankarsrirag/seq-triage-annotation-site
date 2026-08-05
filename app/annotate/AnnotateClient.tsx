@@ -12,6 +12,7 @@ import {
   sliceAtK,
   firstNewIndex,
   utteranceNumberAtIndex,
+  percentAtK,
   SampledConversation,
 } from "@/lib/conversationUtils";
 import { fetchCompletedConversationIds, saveAnnotation } from "@/lib/supabaseClient";
@@ -304,8 +305,12 @@ export default function AnnotateClient({
       )}
 
       <div className="card">
-        {(phase === "k-view" || phase === "initial-picker") && currentK !== null && (
-          <span className="k-badge">First {currentK} utterances</span>
+        {(phase === "k-view" || phase === "initial-picker") && currentK !== null && conv && (
+          <span className="k-badge">
+            {kIndex === 0
+              ? `First ${currentK} utterances (chief complaint)`
+              : `First ${currentK} utterances (${percentAtK(currentK, conv.n_utterances)}%)`}
+          </span>
         )}
         {(phase === "full-reveal" || phase === "change-picker" || phase === "forced-picker") && (
           <span className="k-badge">Full conversation</span>
